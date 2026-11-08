@@ -4,8 +4,20 @@ Our submission for the SSU Data Dash 2026 case. Team members are listed in the r
 
 Built on the official starter ([erwinzhang7/SSU-Data-Dash](https://github.com/erwinzhang7/SSU-Data-Dash));
 `run.py`, `data.py`, `check_submission.py`, `tests/` and `requirements.txt` are the starter's, unchanged.
-The starter's own README is kept as [`STARTER_README.md`](STARTER_README.md). The starter is MIT-licensed by Erzheng Zhang;
-its licence is kept as [`STARTER_LICENSE`](STARTER_LICENSE).
+The starter is MIT-licensed by Erzheng Zhang; its licence is kept as [`STARTER_LICENSE`](STARTER_LICENSE).
+
+| File | What it is |
+|---|---|
+| `models.py` | `make_model()`: picks the model for each track |
+| `claude_model.py` | the two models (off-market `ClaudeModel`, list-aware `ListAwareBlend`) |
+| `features.py` | starter features and MJ's price pockets (`LocationLevels`) |
+| `remarks_features.py` | yes/no answers from the listing descriptions |
+| `time_effects.py` | an earlier time design; imported by `models.py`, not used by `make_model()` |
+| `run.py`, `data.py`, `check_submission.py` | the starter's pipeline: validate, report, predict, check |
+| `rehearse_summer.py` | the summer rehearsal |
+| `submissions/` | the two submission files |
+| `reports/`, `figures/` | the validation report and error figure |
+| `tests/`, `pytest.ini` | the starter's tests |
 
 ## Results
 
