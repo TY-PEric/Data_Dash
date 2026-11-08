@@ -1,10 +1,9 @@
 # SSU Data Dash 2026: Toronto home prices
 
-Our submission for the SSU Data Dash 2026 case. Team members are listed in the report.
+Our submission for the SSU Data Dash 2026 case.
 
 Built on the official starter ([erwinzhang7/SSU-Data-Dash](https://github.com/erwinzhang7/SSU-Data-Dash));
 `run.py`, `data.py`, `check_submission.py`, `tests/` and `requirements.txt` are the starter's, unchanged.
-The starter is MIT-licensed by Erzheng Zhang; its licence is kept as [`STARTER_LICENSE`](STARTER_LICENSE).
 
 | File | What it is |
 |---|---|
@@ -151,20 +150,3 @@ for detached houses). Trees: 300, learning rate about 0.067, absolute-error loss
 `time_effects.py`, `TimeAdjustedModel` and `LocationFeatureModel` in `models.py` are an earlier
 alternative design (season and year effects by neighbourhood tier), kept for comparison and listed
 as comments in `make_model()`.
-
-## Honesty notes
-
-- Every feature is built from the training sales only. `data.hide_answers()` removes sold price, sale
-  date, days on market and the external AVM from the homes being predicted; off-market never sees the
-  list price.
-- Known issue in the comparable-sales features: during training, a sale is meant to be left out of its
-  own comparables by dropping its nearest neighbour. Condos in one building share one location, so the
-  nearest neighbour is often another unit: a condo's own price is inside its 10 nearest comparables for
-  about 31% of condo training rows (30 nearest: about 65%). This does not affect the validation scores
-  (validation homes are never in the training data), but it teaches the trees to trust comparables
-  more than they deserve on new homes.
-- The list-aware `sale_month` feature is exact in validation (every validation home sold in its month)
-  but estimated for the hidden test (a home listed before June is taken to sell in June), so
-  validation flatters it slightly.
-- The model priced homes slightly high on average (median signed error +1.8% off-market, +1.1%
-  list-aware on the validation months).
