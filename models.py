@@ -15,28 +15,29 @@ import features
 
 def make_model(track):
     """Return a fresh, untrained model for "off_market" or "list_aware"."""
-    # Combined version: Claude's price index + comparable sales, MJ's pockets, timeless prices, no months feature,
-    # market heat and sale month for list-aware, MJ's yes/no answers from the descriptions (remarks_features.py),
-    # off-market: lot size, lot vs neighbours, MJ's similar comparables (size + lot) and the neighbours' land price,
-    # and for range sizes ("900-1099"): the range itself, MJ's estimated size, and comparables priced with estimated sizes.
+    # Index-adjusted gradient boosting: a mix-adjusted price index + comparable sales, micro-market levels,
+    # index-free prices, no months feature; market heat and sale month for list-aware; yes/no answers from the
+    # descriptions (remarks_features.py); off-market: lot size, lot vs neighbours, similar comparables (size + lot)
+    # and the neighbours' land price, and for range sizes ("900-1099"): the range itself, an imputed floor area,
+    # and comparables priced with imputed floor areas.
     # Both tracks: time on market (how long a home had already sat unsold, compared with what's normal for similar
     # homes in its area: 20 merged areas x type x 4 size bands, falling back to municipality x type).
-    # MJ's Option B is kept below as a commented-out line.
-    import claude_model
+    # The alternative time-adjusted design (TimeAdjustedModel) is kept below as a commented-out line.
+    import valuation_model
     if track == "list_aware":
-        return claude_model.ListAwareBlend(extra_comps=True, n_iter=300, loss="absolute_error", remarks=True,
+        return valuation_model.ListPriceEnsemble(extra_comps=True, n_iter=300, loss="absolute_error", remarks=True,
                                            extras=("dom",))   # combined + remarks + time on market
-        # return TimeAdjustedModel(features.list_aware_features, list_aware=True, sale_month_feature=True)   # MJ's Option B
+        # return TimeAdjustedModel(features.list_aware_features, list_aware=True, sale_month_feature=True)   # alternative time-adjusted design
         # return LocationFeatureModel(features.list_aware_features, min_pocket_sales=70)
         # return ListPriceBaseline()
         # return FeatureModel(features.list_aware_features)
-    return claude_model.ClaudeModel(extra_comps=True, n_iter=300, pockets=True, remarks=True,
+    return valuation_model.IndexAdjustedGBM(extra_comps=True, n_iter=300, pockets=True, remarks=True,
                                     extras=("lot", "size", "dom"), similar_weight=2.0,
                                     # tuned trees: 1000 slower-learning, bigger trees, each seeing 60% of the columns
                                     tree=dict(max_iter=1000, learning_rate=0.03, max_leaf_nodes=63, min_samples_leaf=40,
                                               max_features=0.6, l2_regularization=1.0))
-    # comps + MJ pockets + remarks + lot + range sizes + time on market + tuned trees
-    # return TimeAdjustedModel(features.off_market_features)   # MJ's Option B
+    # comps + micro-markets + remarks + lot + range sizes + time on market + tuned trees
+    # return TimeAdjustedModel(features.off_market_features)   # alternative time-adjusted design
     # return LocationFeatureModel(features.off_market_features, min_pocket_sales=70)
     # return NearestSalesBaseline(k=10)
     # return FeatureModel(features.off_market_features)
@@ -113,8 +114,8 @@ class FeatureModel:
 
 
 class LocationFeatureModel:
-    """FeatureModel plus MJ's neighbourhood and pocket price levels
-    (features.LocationLevels). The levels are rebuilt from the training
+    """FeatureModel plus neighbourhood and micro-market price levels
+    (features.MicroMarketLevels). The levels are rebuilt from the training
     sales every time the model is trained, so they only know the past.
     use="community" adds only the neighbourhood level, to compare the two.
     """
@@ -132,7 +133,7 @@ class LocationFeatureModel:
         return X
 
     def fit(self, train):
-        self.levels = features.LocationLevels(self.min_pocket_sales).fit(train)
+        self.levels = features.MicroMarketLevels(self.min_pocket_sales).fit(train)
         self.model.fit(self.all_features(train), np.log(train["sold_price"]))
         return self
 
@@ -141,7 +142,7 @@ class LocationFeatureModel:
 
 
 # ---------------------------------------------------------------------------
-# MJ's time plan (Option B): take time out, let the tree price the home, put time back once.
+# Alternative time-adjusted design: take time out, let the tree price the home, put time back once.
 # ---------------------------------------------------------------------------
 import pandas as pd
 import time_effects as te
@@ -167,7 +168,7 @@ class TimeAdjustedModel:
              3. pocket levels built from timeless prices; no "months" feature
              4. the tree learns timeless prices (off-market) or sold / list (list-aware)
     predict: timeless price x season effect x year guess.
-             year guess = average of the "latest month" and "last 3 months" year effects (MJ's choice).
+             year guess = average of the "latest month" and "last 3 months" year effects.
              The home's sale month is taken as its listing month, or the first month after the training
              data if it was listed before that (it can't have sold before then).
     """
@@ -265,7 +266,7 @@ class TimeAdjustedModel:
 
         time_then = self.season_of(train, train["date_sold"].dt.month.to_numpy()) + self.year_of_past(train)
         timeless = train.assign(sold_price=train["sold_price"].to_numpy() / np.exp(time_then))
-        self.levels = features.LocationLevels(self.min_pocket_sales).fit(timeless)    # pockets from timeless prices
+        self.levels = features.MicroMarketLevels(self.min_pocket_sales).fit(timeless)    # pockets from timeless prices
         if self.list_aware:
             self.remember_heat(train)
         X = self.all_features(train, time_then, train["date_sold"].dt.month.to_numpy())

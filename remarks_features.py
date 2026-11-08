@@ -1,6 +1,6 @@
-"""MJ's remarks idea: turn each listing description into yes/no answers.
+"""Text features: turn each listing description into yes/no answers.
 
-The questions were designed by AI (Claude) after reading the descriptions, which were themselves
+The phrase lists were drafted with an AI assistant after reading the descriptions, which were themselves
 written by a language model and reuse a limited set of phrases. Each question is a list of
 phrases; a home gets 1 if its description contains any of them, otherwise 0.
 Same rules for past and new homes, so the answers mean the same thing everywhere.

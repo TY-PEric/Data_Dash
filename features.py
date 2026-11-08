@@ -53,13 +53,13 @@ def list_aware_features(homes):
 
 
 # ---------------------------------------------------------------------------
-# MJ's location idea: neighbourhood first, then price pockets inside it.
+# Micro-market levels: neighbourhood first, then price pockets inside it.
 # ---------------------------------------------------------------------------
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 
 
-class LocationLevels:
+class MicroMarketLevels:
     """Price level of each home's neighbourhood and of its "pocket" in it.
 
     1. Neighbourhood: every home belongs to a `community`.

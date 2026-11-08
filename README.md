@@ -8,10 +8,10 @@ Built on the official starter ([erwinzhang7/SSU-Data-Dash](https://github.com/er
 | File | What it is |
 |---|---|
 | `models.py` | `make_model()`: picks the model for each track |
-| `claude_model.py` | the two models (off-market `ClaudeModel`, list-aware `ListAwareBlend`) |
-| `features.py` | starter features and MJ's price pockets (`LocationLevels`) |
-| `remarks_features.py` | yes/no answers from the listing descriptions |
-| `time_effects.py` | an earlier time design; imported by `models.py`, not used by `make_model()` |
+| `valuation_model.py` | the two models: off-market `IndexAdjustedGBM`, list-aware `ListPriceEnsemble` |
+| `features.py` | starter features and micro-market price levels (`MicroMarketLevels`) |
+| `remarks_features.py` | text features: yes/no answers from the listing descriptions |
+| `time_effects.py` | an alternative time-adjustment design; imported by `models.py`, not used by `make_model()` |
 | `run.py`, `data.py`, `check_submission.py` | the starter's pipeline: validate, report, predict, check |
 | `rehearse_summer.py` | the summer rehearsal |
 | `submissions/` | the two submission files |
@@ -99,17 +99,17 @@ On Windows, if `python` is not found, use `py` instead.
 
 ## The model
 
-`make_model()` in [`models.py`](models.py) returns the two models in [`claude_model.py`](claude_model.py).
+`make_model()` in [`models.py`](models.py) returns the two models in [`valuation_model.py`](valuation_model.py).
 Idea: take time out of every past price, learn what the home is worth on its own, put time back.
 
-### Off-market (`ClaudeModel`)
+### Off-market: index-adjusted gradient boosting (`IndexAdjustedGBM`)
 
-1. **Size.** For range sizes such as "900-1099", `SizeEstimator` estimates the true size from the
+1. **Floor-area imputation.** For range sizes such as "900-1099", `FloorAreaImputer` estimates the true size from the
    home's other facts (rooms, parking, garage, lot, location, style), never from prices. It learns
    from exact-size homes given a pretend range of the kind sellers use. Price per square foot uses
    the estimated size.
-2. **Price index** (`PriceIndex`). Monthly log price per square foot for each home type (co-ops follow
-   condos), adjusted for which neighbourhoods sold that month. Split into a 12-month season and a
+2. **Mix-adjusted price index** (`MixAdjustedPriceIndex`). Monthly log price per square foot for
+   each home type (co-ops follow condos), adjusted for which neighbourhoods sold that month. Split into a 12-month season and a
    deseasonalised level. Every past sale is converted to "index-free" prices; predictions add back the
    latest level (average of the last 3 months, held flat) plus the season of the expected sale month:
    the listing month, or the first month after the training data if the home was listed before it.
@@ -119,20 +119,21 @@ Idea: take time out of every past price, learn what the home is worth on its own
 4. **Similar homes and land.** The 10 nearest homes in a space of location, size and (for houses) lot
    size; for houses, the neighbours' land price (price per lot area).
 5. **Lot.** Frontage, depth, log lot area, lot vs floor area, lot vs the neighbours' lots.
-6. **Price pockets** (`features.LocationLevels`). Inside each neighbourhood, a small tree on latitude and
-   longitude groups nearby sales with similar prices; the level of a home's pocket and neighbourhood
+6. **Micro-market levels** (`features.MicroMarketLevels`). Inside each neighbourhood, a small tree on latitude and
+   longitude groups nearby sales with similar prices into micro-markets; the level of a home's
+   micro-market and neighbourhood
    over the year before it was listed.
 7. **Time on market.** How long the home had already been listed without selling, compared with the
    typical time on market of similar homes nearby (20 merged areas x type x 4 size bands, falling back
    to municipality x type) in the year before its listing.
-8. **Remarks** (`remarks_features.py`). 45 yes/no questions from the listing description
+8. **Text features** (`remarks_features.py`). 45 yes/no questions from the listing description
    (condition, systems, kitchen and bath, floors, space, outside, condo building, nearby places, how it
    is sold) and a 0-3 condition score.
 9. **Trees.** scikit-learn `HistGradientBoostingRegressor`: 1,000 trees, learning rate 0.03, 63 leaves,
    at least 40 homes per leaf, 60% of the columns per split, L2 = 1.0. Target: log price minus the
    index of the sale month.
 
-### List-aware (`ListAwareBlend`)
+### List-aware: two-model ensemble (`ListPriceEnsemble`)
 
 The geometric mean of two designs that miss in opposite directions:
 
@@ -140,8 +141,8 @@ The geometric mean of two designs that miss in opposite directions:
   projected index is added back), with the list price in index-free dollars as a feature;
 - **ratio version:** learns log(sold price / list price) directly and multiplies the list price back.
 
-Both use the starter features, the comparables, time on market and remarks features (not the price
-pockets, lot or size estimates), plus: the list price vs the comparables, the expected sale month,
+Both use the starter features, the comparables, time on market and remarks features (not the
+micro-market levels, lot or imputed floor areas), plus: the list price vs the comparables, the expected sale month,
 and market heat (average log sold / list over the 90 days before listing, city-wide, for condos and
 for detached houses). Trees: 300, learning rate about 0.067, absolute-error loss.
 

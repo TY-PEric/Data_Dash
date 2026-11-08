@@ -1,4 +1,4 @@
-"""MJ's time plan, steps 1-2, with shrinkage.
+"""Time effects for the alternative time-adjusted design (TimeAdjustedModel), with shrinkage.
 
 Step 1  tiers: each neighbourhood's price level vs the city (same type, same year),
         shrunk toward 1.00 by how sure we are of it, then ranked into tiers.

@@ -1,4 +1,4 @@
-"""Claude's own take on location + time ("comps + index" model).
+"""Index-adjusted gradient-boosted valuation model (comparable sales + price index).
 
 TIME   A monthly price index for each home type, adjusted for location (a month where more homes
        sell in pricey neighbourhoods doesn't look like a price rise). The index is split into
@@ -38,7 +38,7 @@ def size_range(homes):
     return is_range, np.where(is_range, lo, np.nan), np.where(is_range, hi, np.nan), features.square_feet(homes["house_area"]).to_numpy()
 
 
-class SizeEstimator:
+class FloorAreaImputer:
     """Estimates the true size of range-size homes from their other facts (never from prices).
     Learns from exact-size homes, each given a pretend range like the ones sellers use."""
 
@@ -89,7 +89,7 @@ class SizeEstimator:
         return out
 
 
-class PriceIndex:
+class MixAdjustedPriceIndex:
     """log price-per-sqft index by home type and month, adjusted for neighbourhood mix."""
 
     def __init__(self, level_months=3, smooth=3, season_by="group", trend=0.0):
@@ -154,16 +154,16 @@ class PriceIndex:
         return out
 
 
-class ClaudeModel:
+class IndexAdjustedGBM:
     def __init__(self, list_aware=False, level_months=3, tuned=False, loss="squared_error", comps=True,
                  index_tiers=1, season_by="group", extra_comps=False, n_iter=None, trend=0.0, ratio_target=False, pockets=False, remarks=False, extras=(), similar_weight=2.0, tree=None):
         self.list_aware, self.comps, self.index_tiers, self.extra_comps = list_aware, comps, index_tiers, extra_comps
         self.ratio_target = ratio_target and list_aware     # list-aware: learn sold/list, no index forecast
-        self.pockets = pockets                               # also add MJ's neighbourhood + pocket levels
-        self.remarks = remarks                               # also add MJ's yes/no answers from the descriptions
+        self.pockets = pockets                               # also add neighbourhood and micro-market levels
+        self.remarks = remarks                               # also add yes/no answers from the descriptions
         self.extras = set(extras)                            # remaining factors: lot, style, garage, muni, size_range, ratios
         self.similar_weight = similar_weight                 # how much size/lot similarity counts vs map distance
-        self.index = PriceIndex(level_months=level_months, season_by=season_by, trend=trend)
+        self.index = MixAdjustedPriceIndex(level_months=level_months, season_by=season_by, trend=trend)
         params = dict(max_iter=1200, learning_rate=0.05, max_leaf_nodes=63, min_samples_leaf=30,
                       l2_regularization=1.0, early_stopping=False) if tuned else {}
         if n_iter:
@@ -244,7 +244,7 @@ class ClaudeModel:
             X["hood_level"] = cs / cn + pd.Series(typ).map(self.type_mean).to_numpy()
         return X
 
-    # ---------------- MJ's similar comparables and the land price ----------------
+    # ---------------- similar comparables and the land price ----------------
     HOUSES = ["Detached", "Semi-Detached", "Freehold Townhouse"]
 
     def _similar_space(self, homes, t):
@@ -290,7 +290,7 @@ class ClaudeModel:
                 X.loc[mine, "land_price10"] = np.median(land[ind2[:, shift:]], axis=1)
         return X
 
-    # ---------------- time on market (MJ's idea) ----------------
+    # ---------------- time on market ----------------
     def _fit_dom(self, s):
         """Groups: 20 merged areas (nearby neighbourhoods) x home type x 4 size bands; fallback municipality x type.
         For each group, remember every past sale's days on market by sale date, to get the typical days on market
@@ -445,7 +445,7 @@ class ClaudeModel:
         s["lp"] = np.log(s["sold_price"] / features.square_feet(s["house_area"]))
         if "size" in self.extras:
             # idea 3: price per sq ft (index, comparables, pockets) measured with the estimated size, so it's cleaner
-            self.sizer = SizeEstimator().fit(s)
+            self.sizer = FloorAreaImputer().fit(s)
             s["lp"] = np.log(s["sold_price"].to_numpy() / self.sizer.estimate(s))
         self._fit_groups(s)
         s["grp"] = self._groups(s)
@@ -464,8 +464,8 @@ class ClaudeModel:
                     self.nn_lot[t] = (NearestNeighbors(n_neighbors=11).fit(self._xy(s[mine])), np.log(s.loc[mine, "lot_front"] * s.loc[mine, "lot_depth"]).to_numpy())
         if "dom" in self.extras:
             self._fit_dom(s)
-        if self.pockets:   # MJ's pockets, built from index-free (time-adjusted) prices
-            self.levels = features.LocationLevels(min_pocket_sales=70).fit(s.assign(sold_price=np.exp(np.log(s["sold_price"]) - idx)))
+        if self.pockets:   # micro-market levels, built from index-free (time-adjusted) prices
+            self.levels = features.MicroMarketLevels(min_pocket_sales=70).fit(s.assign(sold_price=np.exp(np.log(s["sold_price"]) - idx)))
         self._sale_cal = s["date_sold"].dt.month.to_numpy()
         if self.list_aware:
             self._fit_heat(s)
@@ -502,14 +502,14 @@ class ClaudeModel:
         return np.exp(self.model.predict(X) + fc)
 
 
-class ListAwareBlend:
+class ListPriceEnsemble:
     """List-aware: average (in log terms) of two designs that miss in opposite directions:
     the index version (list price in index-free dollars, projected index added back) and the
     ratio version (learns sold / list directly, no projection)."""
 
     def __init__(self, **opt):
-        self.a = ClaudeModel(list_aware=True, **opt)
-        self.b = ClaudeModel(list_aware=True, ratio_target=True, **opt)
+        self.a = IndexAdjustedGBM(list_aware=True, **opt)
+        self.b = IndexAdjustedGBM(list_aware=True, ratio_target=True, **opt)
 
     def fit(self, train):
         self.a.fit(train); self.b.fit(train)
