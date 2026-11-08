@@ -84,8 +84,6 @@ python rehearse_summer.py   # about 3 minutes; the summer rehearsal (its "pooled
 pytest                      # the starter's 18 tests
 ```
 
-On Windows, if `python` is not found, use `py` instead.
-
 ## The model
 
 `make_model()` in [`models.py`](models.py) returns the two models in [`valuation_model.py`](valuation_model.py).
