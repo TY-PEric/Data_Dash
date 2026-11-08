@@ -46,18 +46,57 @@ Full results: [`reports/validation_report.md`](reports/validation_report.md),
 
 ## Reproduce
 
+You need Python 3.10 or newer and an internet connection. Nothing has to be downloaded by hand:
+`pip` installs the libraries and the code fetches the data itself.
+
+**1. Get the code.** Either clone it:
+
+```
+git clone https://github.com/TY-PEric/Data_Dash.git
+cd Data_Dash
+```
+
+or click **Code → Download ZIP** at the top of this page, unzip it, and open a terminal in the
+unzipped folder.
+
+**2. Install the libraries** (pinned versions, from `requirements.txt`):
+
 ```
 pip install -r requirements.txt
-python run.py validate      # about 12 minutes; writes outputs/validation_predictions.csv
-python run.py report        # reports/ and figures/
-python run.py predict       # submissions/submission_off_market.csv and submission_list_aware.csv
-python run.py check         # checks the two submission files
-python rehearse_summer.py   # summer rehearsal, a few minutes
+```
+
+**3. Make the submission files.** This trains on all 150,000 past sales and predicts the test homes:
+
+```
+python run.py predict       # about 3 minutes
+python run.py check         # should print "OK" for both files
+```
+
+It writes `submissions/submission_off_market.csv` and `submissions/submission_list_aware.csv`,
+the same files as in this repository: every random step has a fixed seed, so a rerun gives the
+same predictions.
+
+**4. Optional: the validation numbers in Results.**
+
+```
+python run.py validate      # about 12 minutes; month-by-month validation, December 2025 to May 2026
+python run.py report        # writes reports/validation_report.md and figures/error_by_price_range.png
+python rehearse_summer.py   # about 3 minutes; the summer rehearsal (its "pooled" lines)
 pytest                      # the starter's 18 tests
 ```
 
-The data downloads from Hugging Face the first time (see `data.py`). Everything is deterministic
-(fixed random seeds), so a rerun gives the same predictions.
+**The data.** The first command that needs data downloads it from
+[Hugging Face](https://huggingface.co/datasets/Baliyang/SSU_data_dash) (`listings.parquet`,
+`test_off_market.parquet`, `test_list_aware.parquet`) and caches it, so later runs start at once.
+The data is not stored in this repository. If the download fails, download those three files from
+that page by hand, put them in one folder, and point `DATA_DIR` at it:
+
+```
+DATA_DIR=/path/to/folder python run.py predict                    # macOS / Linux
+$env:DATA_DIR = "C:/path/to/folder"; python run.py predict        # Windows PowerShell
+```
+
+On Windows, if `python` is not found, use `py` instead.
 
 ## The model
 
@@ -73,7 +112,8 @@ Idea: take time out of every past price, learn what the home is worth on its own
 2. **Price index** (`PriceIndex`). Monthly log price per square foot for each home type (co-ops follow
    condos), adjusted for which neighbourhoods sold that month. Split into a 12-month season and a
    deseasonalised level. Every past sale is converted to "index-free" prices; predictions add back the
-   latest level (average of the last 3 months, held flat) plus the season of the expected sale month.
+   latest level (average of the last 3 months, held flat) plus the season of the expected sale month:
+   the listing month, or the first month after the training data if the home was listed before it.
 3. **Comparable sales.** Index-free price per square foot of the nearest 5, 10 and 30 sales of the same
    type and their distances; the nearest 20 of any type; neighbourhood x type and neighbourhood levels
    (leaving the home itself out).
@@ -86,7 +126,7 @@ Idea: take time out of every past price, learn what the home is worth on its own
 7. **Time on market.** How long the home had already been listed without selling, compared with the
    typical time on market of similar homes nearby (20 merged areas x type x 4 size bands, falling back
    to municipality x type) in the year before its listing.
-8. **Remarks** (`remarks_features.py`). About 44 yes/no questions from the listing description
+8. **Remarks** (`remarks_features.py`). 45 yes/no questions from the listing description
    (condition, systems, kitchen and bath, floors, space, outside, condo building, nearby places, how it
    is sold) and a 0-3 condition score.
 9. **Trees.** scikit-learn `HistGradientBoostingRegressor`: 1,000 trees, learning rate 0.03, 63 leaves,
@@ -97,12 +137,14 @@ Idea: take time out of every past price, learn what the home is worth on its own
 
 The geometric mean of two designs that miss in opposite directions:
 
-- **index version:** the off-market approach, with the list price in index-free dollars as a feature;
+- **index version:** the same price index as off-market (the trees learn index-free prices, the
+  projected index is added back), with the list price in index-free dollars as a feature;
 - **ratio version:** learns log(sold price / list price) directly and multiplies the list price back.
 
-Both use the comparables, time on market and remarks features, plus: the list price vs the
-comparables, the expected sale month, and market heat (average sold / list over the 90 days before
-listing, city-wide, for condos and for detached houses). Trees: 300, absolute-error loss.
+Both use the starter features, the comparables, time on market and remarks features (not the price
+pockets, lot or size estimates), plus: the list price vs the comparables, the expected sale month,
+and market heat (average log sold / list over the 90 days before listing, city-wide, for condos and
+for detached houses). Trees: 300, learning rate about 0.067, absolute-error loss.
 
 ### Not used by `make_model()`
 
