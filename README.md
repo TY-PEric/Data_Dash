@@ -84,17 +84,6 @@ python rehearse_summer.py   # about 3 minutes; the summer rehearsal (its "pooled
 pytest                      # the starter's 18 tests
 ```
 
-**The data.** The first command that needs data downloads it from
-[Hugging Face](https://huggingface.co/datasets/Baliyang/SSU_data_dash) (`listings.parquet`,
-`test_off_market.parquet`, `test_list_aware.parquet`) and caches it, so later runs start at once.
-The data is not stored in this repository. If the download fails, download those three files from
-that page by hand, put them in one folder, and point `DATA_DIR` at it:
-
-```
-DATA_DIR=/path/to/folder python run.py predict                    # macOS / Linux
-$env:DATA_DIR = "C:/path/to/folder"; python run.py predict        # Windows PowerShell
-```
-
 On Windows, if `python` is not found, use `py` instead.
 
 ## The model
