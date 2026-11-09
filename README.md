@@ -33,12 +33,12 @@ Starter baselines on the same months: 20.8% (off-market) and 7.3% (list-aware).
 **Expected hidden-test error.** The hidden test predicts June to September 2026, one to four months
 past the training data, in the summer, when prices dip. The validation months contain no summer and
 look only one month ahead, so we also rehearse the test on past summers with `rehearse_summer.py`:
-train on sales up to May 31, predict June to September of the same year, for 2024 and 2025.
+train on sales up to May 31, predict June to September of the same year, for 2023, 2024 and 2025.
 
-| Track | Summer rehearsal MdAPE (2024 + 2025, all homes pooled) | Median signed error |
+| Track | Summer rehearsal MdAPE (2023 to 2025, all 23,984 homes pooled) | Median signed error |
 |---|---|---|
-| Off-market | 7.42% | +1.18% |
-| List-aware | 4.21% | +0.05% |
+| Off-market | 7.60% | −0.88% |
+| List-aware | 4.43% | −0.84% |
 
 Full results: [`reports/validation_report.md`](reports/validation_report.md),
 [`figures/error_by_price_range.png`](figures/error_by_price_range.png).
@@ -80,7 +80,7 @@ same predictions.
 ```
 python run.py validate      # about 12 minutes; month-by-month validation, December 2025 to May 2026
 python run.py report        # writes reports/validation_report.md and figures/error_by_price_range.png
-python rehearse_summer.py   # about 3 minutes; the summer rehearsal (its "pooled" lines)
+python rehearse_summer.py   # about 5 minutes; the summer rehearsal (its "pooled" lines)
 pytest                      # the starter's 18 tests
 ```
 

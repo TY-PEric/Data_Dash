@@ -3,7 +3,7 @@
 The hidden test trains on sales up to May 31, 2026 and predicts homes sold June to
 September 2026: one to four months ahead, in the season when prices dip. run.py validate
 only predicts one month ahead, December to May. This script trains on sales up to
-May 31 of 2024 and of 2025 and predicts June to September of the same year, so its
+May 31 of 2023, 2024 and 2025 and predicts June to September of the same year, so its
 errors are the best guide to the hidden-test error. From the repo folder:
 
     python rehearse_summer.py
@@ -16,7 +16,7 @@ import models
 
 listings = data.load("listings")
 rows, pooled = [], {"off_market": [], "list_aware": []}
-for year in [2024, 2025]:
+for year in [2023, 2024, 2025]:
     train = listings[listings["date_sold"] < f"{year}-06-01"]
     for track in ["off_market", "list_aware"]:
         model = models.make_model(track).fit(train)
@@ -32,7 +32,7 @@ for year in [2024, 2025]:
 
 table = pd.DataFrame(rows)
 print(table.round(2).to_string(index=False))
-print("\nAverage over both summers:")
+print("\nAverage over the three summers:")
 print(table.groupby("track")[["MdAPE", "MAPE", "median_signed_error"]].mean().round(2))
 print("\nAll summer homes together (pooled):")
 for track, parts in pooled.items():
