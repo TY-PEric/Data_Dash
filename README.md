@@ -1,6 +1,9 @@
 # SSU Data Dash 2026: Toronto home prices
 
-Our submission for the SSU Data Dash 2026 case.
+Team Six Figure Guessers' submission for the SSU Data Dash 2026 case (a team of four; I worked on the models).
+The task: predict Toronto home sale prices in two tracks, without the list price (off-market) and with it (list-aware).
+
+The case data is synthetic: about 150,000 generated home sales, with made-up neighbourhoods, coordinates and streets.
 
 Built on the official starter ([erwinzhang7/SSU-Data-Dash](https://github.com/erwinzhang7/SSU-Data-Dash));
 `run.py`, `data.py`, `check_submission.py`, `tests/` and `requirements.txt` are the starter's, unchanged.
@@ -138,3 +141,9 @@ for detached houses). Trees: 300, learning rate about 0.067, absolute-error loss
 `time_effects.py`, `TimeAdjustedModel` and `LocationFeatureModel` in `models.py` are an earlier
 alternative design (season and year effects by neighbourhood tier), kept for comparison and listed
 as comments in `make_model()`.
+
+## Use of AI
+
+As stated in our report: Claude (an AI assistant) designed the 45 description questions and proposed the
+comparable-sales, price-index and list-aware blend methods. AI was also used to write much of the code, as we
+had no formal previous experience with the tools. All the results come from our own validation runs.
