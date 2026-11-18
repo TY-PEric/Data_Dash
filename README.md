@@ -1,6 +1,7 @@
 # SSU Data Dash 2026: Toronto home prices
 
 Team Six Figure Guessers' submission for the SSU Data Dash 2026 case (a team of four; I worked on the models).
+**Result: 3rd place of 29 teams; selected to present at the final round.**
 The task: predict Toronto home sale prices in two tracks, without the list price (off-market) and with it (list-aware).
 
 The case data is synthetic: about 150,000 generated home sales, with made-up neighbourhoods, coordinates and streets.
